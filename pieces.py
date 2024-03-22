@@ -47,7 +47,7 @@ def get_piece_names(json):
         names.append(cat["name"])
     return names[2:]
 
-# From shainisan's github
+# From shainisan's github https://github.com/shainisan/real-life-chess-vision/tree/main
 def order_points(pts):
     
     # order a list of 4 coordinates:
@@ -67,7 +67,7 @@ def order_points(pts):
     
     return rect
 
-# From shainisan's github
+# From shainisan's github https://github.com/shainisan/real-life-chess-vision/tree/main
 def four_point_transform(image, pts):
       
     img = cv.imread(image)
@@ -117,12 +117,11 @@ tst_jsonfile = open("pieces/test/_annotations.coco.json")
 tst_json = json.load(tst_jsonfile)
 tst_sample, tst_response = load_pieces("pieces/test/", tst_json)
 
-# Get predictions & evaluate confusion matrix
-tst_predict = knn.findNearest(tst_sample, 7)
+# Get predictions 
+tst_predict = knn.findNearest(tst_sample, 5)
+
+# Evaluate & display confusion matrix
 labels = get_piece_names(tr_json)
 disp = ConfusionMatrixDisplay.from_predictions(tst_response, tst_predict[1], display_labels=labels)
 disp.plot()
 plt.show()
-
-
-print("wahoo")
