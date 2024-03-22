@@ -5,33 +5,37 @@ import json
 
 
 # Loads images from directory into images in format (matrix, filename) and returns a json, if found
-def load_images(dir, images):
+def load_images(dir):
+    images = []
     for filename in os.listdir(dir):
         f = os.path.join(dir, filename)
         if filename.is_file():
             if f.lower.endswith('.jpg'):
-                #do something???
                 images.append(cv.imread(f), f)
             elif f.lower.endswith('.json'):
-                json = json.load(f)
-    return json
+                jsonfile = open(f)
+                json = json.load(jsonfile)
+    return images, json
 
 
+# Loads all of the identified labels of the images into a 
 def load_training(dir, json):
     pieces = []
     for piece in json["annotations"]:
-        filename = json["images"][piece["id"]]["file_name"]
+        filename = json["images"][piece["image_id"]]["file_name"]
         img = cv.imread(os.path.join(dir, filename))
         bb = piece["bbox"]
         x1 = bb[0]
         y1 = bb[1]
-        x2 = bb[0] + bb[2]
-        y2 = bb[1] + bb[3]
+        x2 = int(bb[0] + bb[2])
+        y2 = int(bb[1] + bb[3])
         crop = img[x1:x2, y1:y2]
-        pieces.append(crop, piece["category_id"])
+        pieces.append((crop, piece["category_id"]))
     return pieces
 
-
+jsonfile = open("pieces/train/_annotations.coco.json")
+json = json.load(jsonfile)
+training_pieces = load_training("pieces/train/", json)
 
 def order_points(pts):
     
