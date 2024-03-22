@@ -2,9 +2,9 @@ import cv2 as cv
 import numpy as np
 import os
 import json
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.cluster import MeanShift
+from sklearn.metrics import ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
-
 
 # Loads images from directory into images in format (matrix, filename) and returns a json, if found
 def load_images(dir):
@@ -18,7 +18,6 @@ def load_images(dir):
                 jsonfile = open(f)
                 json = json.load(jsonfile)
     return images, json
-
 
 # Loads all of the identified labels of the images into a 
 def load_pieces(dir, json):
@@ -35,7 +34,8 @@ def load_pieces(dir, json):
         y2 = int(bb[1] + bb[3])
         crop = img[x1:x2, y1:y2]
         crop = cv.resize(crop, dsize)
-        train = np.reshape(crop, -1)
+        train = np.array(np.reshape(crop, -1))
+        train = np.insert(train, 0, piece["area"])
         sample.append(train)
         response.append(piece["category_id"])
     return np.array(sample, np.float32), np.array(response, np.float32)
@@ -102,8 +102,6 @@ def four_point_transform(image, pts):
     return img
 
 
-help = confusion_matrix(np.ones((3,1)), np.zeros((3,1)))
-
 # Load training data from dataset
 tr_jsonfile = open("pieces/train/_annotations.coco.json")
 tr_json = json.load(tr_jsonfile)
@@ -121,7 +119,6 @@ tst_sample, tst_response = load_pieces("pieces/test/", tst_json)
 
 # Get predictions & evaluate confusion matrix
 tst_predict = knn.findNearest(tst_sample, 7)
-conf_mat = confusion_matrix(tst_response, tst_predict[1])
 labels = get_piece_names(tr_json)
 disp = ConfusionMatrixDisplay.from_predictions(tst_response, tst_predict[1], display_labels=labels)
 disp.plot()
