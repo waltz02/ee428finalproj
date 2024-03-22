@@ -2,6 +2,8 @@ import cv2 as cv
 import numpy as np
 import os
 import json
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
 
 
 # Loads images from directory into images in format (matrix, filename) and returns a json, if found
@@ -19,8 +21,10 @@ def load_images(dir):
 
 
 # Loads all of the identified labels of the images into a 
-def load_training(dir, json):
-    pieces = []
+def load_pieces(dir, json):
+    dsize = (20,60)
+    sample = []
+    response = []
     for piece in json["annotations"]:
         filename = json["images"][piece["image_id"]]["file_name"]
         img = cv.imread(os.path.join(dir, filename))
@@ -30,13 +34,20 @@ def load_training(dir, json):
         x2 = int(bb[0] + bb[2])
         y2 = int(bb[1] + bb[3])
         crop = img[x1:x2, y1:y2]
-        pieces.append((crop, piece["category_id"]))
-    return pieces
+        crop = cv.resize(crop, dsize)
+        train = np.reshape(crop, -1)
+        sample.append(train)
+        response.append(piece["category_id"])
+    return np.array(sample, np.float32), np.array(response, np.float32)
 
-jsonfile = open("pieces/train/_annotations.coco.json")
-json = json.load(jsonfile)
-training_pieces = load_training("pieces/train/", json)
+# Gets all piece names from the json
+def get_piece_names(json):
+    names = []
+    for cat in json["categories"]:
+        names.append(cat["name"])
+    return names[2:]
 
+# From shainisan's github
 def order_points(pts):
     
     # order a list of 4 coordinates:
@@ -56,7 +67,7 @@ def order_points(pts):
     
     return rect
 
-
+# From shainisan's github
 def four_point_transform(image, pts):
       
     img = cv.imread(image)
@@ -89,3 +100,32 @@ def four_point_transform(image, pts):
     # img.show()    
     # return the warped image
     return img
+
+
+help = confusion_matrix(np.ones((3,1)), np.zeros((3,1)))
+
+# Load training data from dataset
+tr_jsonfile = open("pieces/train/_annotations.coco.json")
+tr_json = json.load(tr_jsonfile)
+tr_sample, tr_response = load_pieces("pieces/train/", tr_json)
+
+# Create kNN and train it on training data
+knn = cv.ml.KNearest.create()
+traindata = cv.ml.TrainData.create(tr_sample, cv.ml.ROW_SAMPLE, tr_response)
+knn.train(traindata)
+
+# Prepare testing data
+tst_jsonfile = open("pieces/test/_annotations.coco.json")
+tst_json = json.load(tst_jsonfile)
+tst_sample, tst_response = load_pieces("pieces/test/", tst_json)
+
+# Get predictions & evaluate confusion matrix
+tst_predict = knn.findNearest(tst_sample, 7)
+conf_mat = confusion_matrix(tst_response, tst_predict[1])
+labels = get_piece_names(tr_json)
+disp = ConfusionMatrixDisplay.from_predictions(tst_response, tst_predict[1], display_labels=labels)
+disp.plot()
+plt.show()
+
+
+print("wahoo")
